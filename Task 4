@@ -1,0 +1,74 @@
+
+from qiskit import QuantumCircuit, Aer, execute
+import numpy as np
+import matplotlib.pyplot as plt
+from qiskit.visualization import plot_histogram
+
+size = 5
+state_values = [22, 17, 27, 12]  # Target states in decimal representation
+
+qc = QuantumCircuit(size)
+
+for qubit in range(size):
+    qc.h(qubit)
+
+# Step 2: Create an entangling layer with custom rotations for each target state
+# This section of code sets up transformations aimed at increasing the amplitude on target states
+
+# Target state |10110⟩ (decimal 22)
+qc.x([0, 2, 3])    
+qc.h(4)
+qc.rz(np.pi / 2, 4)
+qc.cx(3, 4)
+qc.h(4)
+qc.x([0, 2, 3])  
+
+# Target state |10001⟩ (decimal 17)
+qc.x([0, 4])  
+qc.h(3)
+qc.rz(np.pi / 2, 3)
+qc.cx(2, 3)
+qc.h(3)
+qc.x([0, 4])      
+
+# Target state |11011⟩ (decimal 27)
+qc.x([3])         
+qc.h(2)
+qc.rz(np.pi / 2, 2)
+qc.cx(1, 2)
+qc.h(2)
+qc.x([3])        
+
+# Target state |01100⟩ (decimal 12)
+qc.x([1, 2])      
+qc.h(0)
+qc.rz(np.pi / 2, 0)
+qc.cx(4, 0)
+qc.h(0)
+qc.x([1, 2])    
+
+qc.measure_all()
+
+print("Quantum Circuit:")
+display(qc.draw(output='mpl')) 
+
+simulator = Aer.get_backend('qasm_simulator')
+result = execute(qc, backend=simulator, shots=1024).result()
+counts = result.get_counts()
+
+print("\nMeasurement results:")
+total_shots = 1024
+
+probabilities = {state: (count / total_shots) * 100 for state, count in counts.items()}
+for state, prob in probabilities.items():
+    print(f"State {state}: {prob:.2f}%")
+
+plt.figure(figsize=(12, 6))
+plt.bar(probabilities.keys(), probabilities.values(), color='royalblue')
+
+plt.xlabel('Measured States')
+
+plt.ylabel('Probability (%)')
+plt.title('Measurement Results for Quantum Circuit')
+plt.xticks(rotation=90)
+plt.show()
