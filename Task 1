@@ -1,0 +1,103 @@
+# Sara Palizdar
+
+# Task 1 
+
+# first part of the prompt : 
+import numpy as np
+import matplotlib.pyplot as plt
+import time
+
+X = np.array([[0, 1],
+              [1, 0]])
+H = (1 / np.sqrt(2)) * np.array([[1, 1],
+                                 [1, -1]])
+I = np.eye(2)
+
+CNOT = np.array([[1, 0, 0, 0],
+                 [0, 1, 0, 0],
+                 [0, 0, 0, 1],
+                 [0, 0, 1, 0]])
+
+def kronecker_n(gates):
+    result = gates[0]
+    for gate in gates[1:]:
+        result = np.kron(result, gate)
+    return result
+
+def apply_gate(state, gate):
+    return np.dot(gate, state)
+
+def naive_simulation(num_qubits, gates):
+    state = np.zeros((2**num_qubits,), dtype=complex)
+    state[0] = 1  
+
+    for gate, qubits in gates:
+        if len(qubits) == 1:
+            full_gate = kronecker_n([I if i != qubits[0] else gate for i in range(num_qubits)])
+        elif len(qubits) == 2:
+            full_gate = kronecker_n([I if i not in qubits else (CNOT if gate is CNOT else gate) for i in range(num_qubits - 1)])
+        state = apply_gate(state, full_gate)
+    
+    return state
+
+qubit_range = range(2, 12)
+times = []
+for num_qubits in qubit_range:
+    start = time.time()
+    gates = [(H, [0]), (X, [1])]  #   H on qubit 0, X on qubit 1
+    naive_simulation(num_qubits, gates)
+    times.append(time.time() - start)
+plt.plot(qubit_range, times, 'o-')
+plt.xlabel('Number of Qubits')
+plt.ylabel('Runtime (s)')
+plt.title('Naive Simulation Runtime')
+plt.show()
+
+
+# Second Part of the prompt : 
+
+def apply_tensor_gate(state_tensor, gate, qubit_idx):
+    state_tensor = np.moveaxis(state_tensor, qubit_idx, 0)
+    new_tensor = np.tensordot(gate, state_tensor, axes=[1, 0])
+    state_tensor = np.moveaxis(new_tensor, 0, qubit_idx)
+    return state_tensor
+
+def apply_tensor_cnot(state_tensor, control, target):
+    shape = state_tensor.shape
+    flattened_state = state_tensor.reshape((2**len(shape),))
+    reshaped = np.tensordot(CNOT, flattened_state, axes=0).reshape(shape)
+    return reshaped
+
+def tensor_simulation(num_qubits, gates):
+    state_tensor = np.zeros((2,) * num_qubits, dtype=complex)
+    state_tensor[(0,) * num_qubits] = 1  # Initial state |0>^n
+
+    for gate, qubits in gates:
+        if len(qubits) == 1:
+            state_tensor = apply_tensor_gate(state_tensor, gate, qubits[0])
+        elif len(qubits) == 2:
+            state_tensor = apply_tensor_cnot(state_tensor, qubits[0], qubits[1])
+    
+    return state_tensor.flatten()
+tensor_times = []
+for num_qubits in qubit_range:
+    start = time.time()
+    tensor_simulation(num_qubits, gates)
+    tensor_times.append(time.time() - start)
+
+plt.plot(qubit_range, times, 'o-', label='Naive')
+plt.plot(qubit_range, tensor_times, 'x-', label='Tensor')
+plt.xlabel('Number of Qubits')
+plt.ylabel('Runtime (s)')
+plt.title('Naive in comparison with Tensor Simulation Runtime')
+plt.legend()
+plt.show()
+
+""" Bonus Questions
+To sample from the final states or compute expectation values:
+Sampling can be achieved by squaring the magnitude of each amplitude in the final state vector to get probabilities, then drawing samples proportional to these probabilities.
+In order to compute expectation value : expectation_value = np.vdot(state, O @ state)
+"""
+
+
+
